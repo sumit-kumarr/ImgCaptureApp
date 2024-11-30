@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Camera Capture App</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        body{
+            background-color: #900707;
+            
+        }
+        .captured-images {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+            gap: 1rem;
+            padding: 1rem;
+        }
+        #video {
+            transform: scaleX(-1);
+        }
+        #canvas {
+            display: none;
+        }
+        
+    </style>
+</head>
+<body class="bg-slate-50 min-h-screen ">
+    <div class="container mx-auto px-4 py-8">
+        <div class="max-w-2xl mx-auto bg-white rounded-lg shadow-lg p-6">
+            <h1 class="text-3xl font-bold text-center mb-8 text-slate-800">Camera Capture App</h1>
+            
+            <div class="flex flex-col items-center gap-4">
+                <video id="video" class="w-full max-w-md rounded-lg border border-slate-200" autoplay playsinline></video>
+                <canvas id="canvas"></canvas>
+                
+                <div class="flex gap-4">
+                    <button id="startBtn" class="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors">
+                        <i class="bi bi-camera-fill mr-2"></i>Start Camera
+                    </button>
+                    <button id="captureBtn" class="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors" disabled>
+                        <i class="bi bi-camera mr-2"></i>Capture
+                    </button>
+                    <button id="switchBtn" class="px-6 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors" disabled>
+                        <i class="bi bi-arrow-repeat mr-2"></i>Switch Camera
+                    </button>
+                </div>
+            </div>
+
+            <div class="mt-8">
+                <h2 class="text-xl font-semibold mb-4 text-slate-800">Captured Images</h2>
+                <div id="capturedImages" class="captured-images"></div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        const video = document.getElementById('video');
+        const canvas = document.getElementById('canvas');
+        const startBtn = document.getElementById('startBtn');
+        const captureBtn = document.getElementById('captureBtn');
+        const switchBtn = document.getElementById('switchBtn');
+        const capturedImages = document.getElementById('capturedImages');
+        let stream = null;
+        let facingMode = 'user';
+        
+        async function startCamera() {
+            try {
+                if (stream) {
+                    stream.getTracks().forEach(track => track.stop());
+                }
+                
+                stream = await navigator.mediaDevices.getUserMedia({
+                    video: { facingMode: facingMode }
+                });
+                video.srcObject = stream;
+                startBtn.innerHTML = '<i class="bi bi-stop-circle mr-2"></i>Stop Camera';
+                captureBtn.disabled = false;
+                switchBtn.disabled = false;
+            } catch (err) {
+                console.error('Error accessing camera:', err);
+                alert('Error accessing camera. Please ensure you have granted camera permissions.');
+            }
+        }
+
+        function stopCamera() {
+            if (stream) {
+                stream.getTracks().forEach(track => track.stop());
+                video.srcObject = null;
+                stream = null;
+                startBtn.innerHTML = '<i class="bi bi-camera-fill mr-2"></i>Start Camera';
+                captureBtn.disabled = true;
+                switchBtn.disabled = true;
+            }
+        }
+
+        function captureImage() {
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            const ctx = canvas.getContext('2d');
+            
+            // Flip the image horizontally if using front camera
+            if (facingMode === 'user') {
+                ctx.scale(-1, 1);
+                ctx.drawImage(video, -video.videoWidth, 0, video.videoWidth, video.videoHeight);
+            } else {
+                ctx.drawImage(video, 0, 0, video.videoWidth, video.videoHeight);
+            }
+
+            const imgWrapper = document.createElement('div');
+            imgWrapper.className = 'relative group';
+
+            const img = document.createElement('img');
+            img.src = canvas.toDataURL('image/png');
+            img.className = 'w-full h-auto rounded-lg shadow-md transition-transform hover:scale-105';
+
+            const downloadBtn = document.createElement('button');
+            downloadBtn.className = 'absolute bottom-2 right-2 bg-blue-600 text-white p-2 rounded-full opacity-0 group-hover:opacity-100 transition-opacity';
+            downloadBtn.innerHTML = '<i class="bi bi-download"></i>';
+            downloadBtn.onclick = () => {
+                const link = document.createElement('a');
+                link.download = `capture-${Date.now()}.png`;
+                link.href = img.src;
+                link.click();
+            };
+
+            imgWrapper.appendChild(img);
+            imgWrapper.appendChild(downloadBtn);
+            capturedImages.insertBefore(imgWrapper, capturedImages.firstChild);
+        }
+
+        startBtn.addEventListener('click', () => {
+            if (!stream) {
+                startCamera();
+            } else {
+                stopCamera();
+            }
+        });
+
+        captureBtn.addEventListener('click', captureImage);
+
+        switchBtn.addEventListener('click', () => {
+            facingMode = facingMode === 'user' ? 'environment' : 'user';
+            startCamera();
+        });
+
+        // Check if the device has multiple cameras
+        navigator.mediaDevices.enumerateDevices()
+            .then(devices => {
+                const videoDevices = devices.filter(device => device.kind === 'videoinput');
+                if (videoDevices.length <= 1) {
+                    switchBtn.style.display = 'none';
+                }
+            });
+    </script>
+</body>
+</html>
