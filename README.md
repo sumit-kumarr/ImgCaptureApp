@@ -1,2 +1,2 @@
 # ImgCaptureApp
-This image captute App by using Html css and Js
+This is image capture App by using Html css and Js
